@@ -41,7 +41,7 @@ h1,h2,h3,h4{margin:0;line-height:1.3;text-wrap:balance}
 .num{font-variant-numeric:tabular-nums}
 .disp{font-family:var(--f-display)}
 
-.wrap{max-width:1160px;margin:0 auto;padding:0 22px}
+.wrap{max-width:1160px;margin:0 auto;padding-left:22px;padding-right:22px}
 header.top{padding-top:env(safe-area-inset-top);position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .top-inner{display:flex;align-items:center;gap:16px;padding-top:14px;padding-bottom:14px}
 .brand{display:flex;align-items:center;gap:10px;margin-right:auto}
@@ -328,6 +328,14 @@ table.t th.n{text-align:right}
 .notice{font-size:13px;background:var(--peach-soft);border-radius:14px;padding:10px 14px;margin-bottom:14px}
 
 /* ---------- To-do additions ---------- */
+.pset{display:grid;gap:6px}
+.pset-h{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:700;color:var(--c);margin:0}
+.pset-h svg{width:16px;height:16px}
+.pset-h em{font-style:normal;color:var(--muted);font-weight:500;font-size:12px}
+.prow{display:grid;grid-template-columns:minmax(0,1fr) 32px 32px;gap:6px;align-items:center}
+.prow.add{grid-template-columns:minmax(0,1fr) auto}
+.prow input{padding:7px 11px}
+.prow .icon-btn:disabled{opacity:.3;cursor:default}
 .pill{font-size:11px;font-weight:600;color:var(--muted);background:var(--surface-2);border-radius:6px;padding:1px 6px;white-space:nowrap}
 .pill.late{color:var(--bad);background:color-mix(in srgb,var(--bad) 11%,transparent)}
 .pill.soon{color:var(--accent);background:var(--accent-soft)}
@@ -386,13 +394,12 @@ table.t th.n{text-align:right}
   .rt-grid{grid-template-columns:1fr}
 }
 @media (max-width:640px){
-  .wrap{padding:0 16px}
+  .wrap{padding-left:16px;padding-right:16px}
   header.top{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--bg)}
   input[type=text],input[type=number],input[type=date],input[type=search],select,textarea{font-size:16px}
   nav.tabs{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:30;justify-content:space-around;padding:6px}
   nav.tabs a{flex-direction:column;gap:2px;font-size:11px;padding:7px 4px;flex:1}
   nav.tabs a svg{width:20px;height:20px}
-  main{padding-bottom:110px}
   .toast{bottom:96px}
   .hero{flex-direction:column;align-items:stretch;padding:22px}
   .hero-stats{justify-content:space-between}
@@ -489,6 +496,9 @@ const S = {
 const chapters = () => S.chapters || defaultChapters();
 const progress = () => S.progress || {};
 const prepMeta = () => S.prepMeta || {examDate:'', scores:[]};
+const presets = () => S.presets || [];
+function savePresets(){ persist('app/presets', {list:S.presets||[]}); }
+const PRESET_EX = {prep:'예: 토익 단어 30개', school:'예: 수업 복습', work:'예: 메일 확인', house:'예: 설거지', workout:'예: 스트레칭 10분'};
 const inbody = () => (S.inbody && S.inbody.entries) || [];
 const dv = (id, def='') => (id in S.drafts) ? S.drafts[id] : def;
 
@@ -543,6 +553,7 @@ function setSync(){
 }
 
 const DOCS = {
+  'app/presets':  d => { S.presets = d && Array.isArray(d.list) ? d.list : []; },
   'app/tasks':    d => { S.tasks = d && Array.isArray(d.list) ? d.list : null; },
   'app/routines': d => { S.routines = d && Array.isArray(d.list) ? d.list : null; },
   'app/inbody':   d => { S.inbody = d || null; },
@@ -611,16 +622,7 @@ const openTasks = () => tasks().filter(t=>!t.done);
 const doneDate = t => t.doneAt ? ymd(new Date(t.doneAt)) : '';
 const fixCat = c => CATS[c] ? c : (c==='etc' ? 'work' : 'house');
 function mkTask(x){ return {id:uid(), title:'', cat:'prep', due:'', star:false, note:'', subs:[], repeat:{type:'none'}, done:false, doneAt:null, createdAt:new Date().toISOString(), ...x}; }
-function DEFAULT_TASKS(){
-  const t = todayStr();
-  return [
-    mkTask({title:'영어 단어 30개 외우기', cat:'prep', due:t, repeat:{type:'daily'}}),
-    mkTask({title:'과제 보고서 초안 쓰기', cat:'school', due:addDays(t,2), star:true, subs:[{id:uid(),t:'자료 조사',done:false},{id:uid(),t:'목차 정하기',done:false}]}),
-    mkTask({title:'주간 업무 보고 메일 보내기', cat:'work', due:t}),
-    mkTask({title:'분리수거', cat:'house'}),
-    mkTask({title:'스트레칭 10분', cat:'workout', due:t, repeat:{type:'daily'}, note:'자기 전 허리·어깨 위주'}),
-  ];
-}
+function DEFAULT_TASKS(){ return []; }
 /* 예전 루틴 앱 데이터가 있으면 루틴 하나하나를 '반복 할 일'로 옮겨요 */
 function migrate(){
   if(S.tasks){
@@ -754,6 +756,7 @@ function vToday(){
   const groups = CAT_ORDER.map(c=>({c, list:sortTasks(dueHere.filter(t=>t.cat===c)).sort((a,b)=>a.done-b.done)})).filter(g=>g.list.length);
   const catStats = CAT_ORDER.map(c=>({c, l:all.filter(t=>t.cat===c)})).filter(x=>x.l.length);
   const noDate = openTasks().filter(t=>!t.due);
+  const inDay = new Set(all.map(t=>t.cat+'|'+t.title));
   const upcoming = sortTasks(openTasks().filter(t=>t.due && t.due>date)).slice(0,6);
   const sc = dayScore(date);
   return `
@@ -782,7 +785,7 @@ function vToday(){
         <div class="card group cat-${g.c}">
           <div class="group-h"><span class="dot">${CAT_ICON[g.c]}</span><h4>${CATS[g.c]}</h4><em class="num">${g.list.filter(t=>t.done).length} / ${g.list.length}</em></div>
           <ul class="items">${g.list.map(t=>itemRow(t,{showDue:false})).join('')}</ul>
-        </div>`).join('') : (late.length?'':'<div class="card empty">이날 할 일이 없어요. 아래에 적거나, 오른쪽 "날짜 없는 할 일"을 눌러 이날로 가져오세요.</div>')}
+        </div>`).join('') : (late.length?'':'<div class="card empty">이날 할 일이 없어요. 아래에 적거나, "빠른 추가"에서 눌러 넣으세요.</div>')}
       ${addForm(date)}
       <div class="card memo-card"><label class="f" for="memo">이날 메모<textarea id="memo" data-memo placeholder="컨디션, 공부하면서 막힌 부분, 운동 느낌 등">${esc(doc.memo||'')}</textarea></label></div>
     </div>
@@ -793,13 +796,17 @@ function vToday(){
         <span style="color:var(--peach)">›</span>
       </a>
       <div class="card palette" style="position:static">
-        <h3 class="sec-title">날짜 없는 할 일</h3>
-        <p class="hint">누르면 ${isToday?'오늘':md(date)} 할 일로 가져와요</p>
-        ${noDate.length? CAT_ORDER.map(c=>{ const ts=noDate.filter(t=>t.cat===c); if(!ts.length) return '';
-          return `<div class="pal-group cat-${c}"><h5>${CATS[c]}</h5><div class="chips">${ts.map(t=>`<button class="chip cat-${c}" data-act="pull" data-id="${esc(t.id)}">${t.star?'★ ':''}${esc(t.title)}</button>`).join('')}</div></div>`;}).join('')
-          : '<p class="hint" style="margin-top:12px">아직 없어요. 할 일을 추가할 때 날짜 칸을 비우면 여기에 모여요.</p>'}
-        <p class="pal-foot">마감일, 반복, 세부 할 일은 <a href="#list">할 일 목록</a> 탭이나 할 일을 눌러서 바꿀 수 있어요.</p>
+        <div class="row"><h3 class="sec-title" style="margin-right:auto">빠른 추가</h3>${presets().length?'<button class="btn sm ghost" data-act="preset-edit">편집</button>':''}</div>
+        <p class="hint">내가 정해 둔 항목이에요. 누르면 ${isToday?'오늘':md(date)} 할 일로 바로 들어가요</p>
+        ${presets().length? CAT_ORDER.map(c=>{ const ps=presets().filter(p=>p.cat===c); if(!ps.length) return '';
+          return `<div class="pal-group cat-${c}"><h5>${CATS[c]}</h5><div class="chips">${ps.map(p=>`<button class="chip cat-${c} ${inDay.has(c+'|'+p.title)?'in':''}" data-act="preset-add" data-id="${esc(p.id)}" id="chip-${esc(p.id)}">${esc(p.title)}</button>`).join('')}</div></div>`;}).join('')
+          : `<div class="empty" style="padding:18px 6px 8px">자주 하는 일을 등록해 두면<br>여기서 한 번 눌러 추가할 수 있어요.<div style="margin-top:12px"><button class="btn sm primary" data-act="preset-edit">빠른 추가 항목 만들기</button></div></div>`}
       </div>
+      ${noDate.length?`<div class="card palette" style="position:static">
+        <h3 class="sec-title">날짜 없는 할 일</h3>
+        <p class="hint">누르면 ${isToday?'오늘':md(date)} 할 일로 옮겨요</p>
+        <div class="chips" style="margin-top:12px">${noDate.map(t=>`<button class="chip cat-${t.cat}" data-act="pull" data-id="${esc(t.id)}">${t.star?'★ ':''}${esc(t.title)}</button>`).join('')}</div>
+      </div>`:''}
       ${upcoming.length?`<div class="card palette" style="position:static">
         <h3 class="sec-title">다가오는 할 일</h3>
         <ul class="items" style="margin-top:8px">${upcoming.map(t=>itemRow(t,{showCat:true})).join('')}</ul>
@@ -843,6 +850,10 @@ function vList(){
       </section>`:''}
     </div>
     <aside class="col">
+      <section class="card cat-stats">
+        <div class="row"><h3 class="sec-title" style="margin-right:auto">빠른 추가 항목</h3><button class="btn sm" data-act="preset-edit">설정</button></div>
+        <p class="hint" style="margin:-6px 0 0">${presets().length?`${presets().length}개 등록됨 · 오늘 탭에서 한 번 눌러 추가해요`:'자주 하는 일을 등록해 두면 오늘 탭에서 한 번 눌러 추가할 수 있어요'}</p>
+      </section>
       <section class="card cat-stats">
         <h3 class="sec-title">분류별 남은 일</h3>
         ${CAT_ORDER.map(c=>{ const l=openTasks().filter(t=>t.cat===c); const lt=l.filter(t=>t.due&&t.due<today).length;
@@ -1106,6 +1117,20 @@ function extOf(m){
 /* ================= modals ================= */
 function vModal(){
   const m = S.modal;
+  if(m.type==='presets'){
+    return `<div class="modal-bg" data-act="modal-bg"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mh">
+      <h3 id="mh">빠른 추가 항목 설정<button class="icon-btn" data-act="modal-close" aria-label="닫기">×</button></h3>
+      <p class="hint" style="margin:-8px 0 14px">자주 하는 일을 분류별로 등록해 두세요. 오늘 탭의 "빠른 추가"에서 한 번 누르면 그날 할 일로 들어가요. 바꾼 내용은 바로 저장돼요.</p>
+      <div class="fields">${CAT_ORDER.map(c=>{ const ps=presets().filter(p=>p.cat===c); return `<div class="pset cat-${c}">
+        <h5 class="pset-h">${CAT_ICON[c]}${CATS[c]} <em>${ps.length}개</em></h5>
+        ${ps.map((p,i)=>`<div class="prow"><input type="text" id="pr-${esc(p.id)}" data-preset="${esc(p.id)}" value="${esc(p.title)}" aria-label="항목 이름">
+          <button type="button" class="icon-btn" data-act="preset-move" data-id="${esc(p.id)}" data-n="-1" aria-label="위로" ${i===0?'disabled':''}>↑</button>
+          <button type="button" class="icon-btn" data-act="preset-del" data-id="${esc(p.id)}" aria-label="삭제">×</button></div>`).join('')}
+        <form class="prow add" data-form="preset-new" data-c="${c}"><input type="text" id="pn-${c}" data-draft placeholder="${PRESET_EX[c]}" value="${esc(dv('pn-'+c))}" aria-label="${CATS[c]} 항목 추가" autocomplete="off"><button class="btn sm" type="submit">추가</button></form>
+      </div>`; }).join('')}</div>
+      <div class="acts"><button type="button" class="btn primary" data-act="modal-close">완료</button></div>
+    </div></div>`;
+  }
   if(m.type==='task'){
     const t = m.draft; const rep = t.repeat||{type:'none'};
     return `<div class="modal-bg" data-act="modal-bg"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mh">
@@ -1207,6 +1232,13 @@ document.addEventListener('click', async e => {
     case 'open': openTask(t.dataset.id); break;
     case 'new': openTask(null); break;
     case 'tomorrow': { const x=task(t.dataset.id); if(!x) break; const prev=x.due; const base=(x.due && x.due>todayStr())?x.due:todayStr(); editTask(x.id, y=>{ y.due=addDays(base,1); }); toast(`'${x.title}'을(를) ${md(x.due)}로 미뤘어요`, ()=>editTask(x.id, y=>{ y.due=prev; })); break; }
+    case 'preset-edit': S.modal={type:'presets'}; render(); break;
+    case 'preset-del': { const p=presets().find(x=>x.id===t.dataset.id); S.presets=presets().filter(x=>x.id!==t.dataset.id); savePresets(); render(); if(p) toast(`'${p.title}' 항목을 뺐어요`, ()=>{ S.presets=[...presets(), p]; savePresets(); render(); }); break; }
+    case 'preset-move': { const l=[...presets()]; const i=l.findIndex(x=>x.id===t.dataset.id); const c=l[i].cat; let j=i+(+t.dataset.n); while(j>=0 && j<l.length && l[j].cat!==c) j+=(+t.dataset.n); if(j<0||j>=l.length) break; [l[i],l[j]]=[l[j],l[i]]; S.presets=l; savePresets(); render(); break; }
+    case 'preset-add': { const p=presets().find(x=>x.id===t.dataset.id); if(!p) break;
+      const exists = dayTasks(S.date).some(x=>x.cat===p.cat && x.title===p.title) || (S.date===todayStr() && lateTasks().some(x=>x.cat===p.cat && x.title===p.title));
+      if(exists){ flashChip(p.id); toast(`'${p.title}'은(는) 이미 이날 할 일에 있어요`); break; }
+      S.tasks=[...tasks(), mkTask({title:p.title, cat:p.cat, due:S.date, note:p.note||''})]; saveTasks(); render(); flashChip(p.id); break; }
     case 'pull': editTask(t.dataset.id, x=>{ x.due=S.date; }); break;
     case 'late-today': { const td=todayStr(); lateTasks().forEach(x=>x.due=td); saveTasks(); render(); toast('밀린 할 일을 오늘로 옮겼어요'); break; }
     case 'filter': S.filter=t.dataset.c; delete S.drafts['f-add-cat']; if(S.view!=='list') location.hash='list'; else render(); break;
@@ -1252,6 +1284,7 @@ document.addEventListener('input', e => {
   const el = e.target;
   if(el.hasAttribute('data-draft')) S.drafts[el.id] = el.type==='checkbox'? el.checked : el.value;
   if(el.id==='q'){ S.q=el.value; render(); }
+  if(el.dataset.preset){ const p=presets().find(x=>x.id===el.dataset.preset); if(p && el.value.trim()){ p.title=el.value.trim(); clearTimeout(window._pt); window._pt=setTimeout(savePresets,300); } }
   if(el.id==='memo') editDay(S.date, d=>{ d.memo=el.value; }, {silent:true});
   if(el.dataset.chmemo) editProg(S.subj, el.dataset.chmemo, c=>{ c.memo=el.value; }, {silent:true});
   if(el.dataset.problems) editProg(S.subj, el.dataset.problems, c=>{ c.problems=Math.max(0,+el.value||0); }, {silent:true});
@@ -1271,6 +1304,11 @@ document.addEventListener('keydown', e => { if(e.key==='Escape' && S.modal) clos
 document.addEventListener('submit', async e => {
   const f = e.target.closest('[data-form]'); if(!f) return; e.preventDefault();
   const k = f.dataset.form;
+  if(k==='preset-new'){
+    const c=f.dataset.c; const v=(S.drafts['pn-'+c]||'').trim(); if(!v){ $('#pn-'+c)?.focus(); return; }
+    if(presets().some(p=>p.cat===c && p.title===v)){ toast('이미 있는 항목이에요'); return; }
+    S.presets=[...presets(), {id:'p-'+uid(), title:v, cat:c}]; savePresets(); S.drafts['pn-'+c]=''; render(); setTimeout(()=>$('#pn-'+c)?.focus(),0);
+  }
   if(k==='add-item'){
     const title=(S.drafts['f-add-text']||'').trim(); if(!title){ $('#f-add-text').focus(); return; }
     const cat=$('#f-add-cat').value, due=$('#f-add-due').value;
@@ -1349,7 +1387,7 @@ async function downloadMaterial(mt){
   }catch(err){ toast('다운로드하지 못했어요.'); }
 }
 async function backup(){
-  const data = {exportedAt:new Date().toISOString(), tasks:tasks(), inbody:inbody(), chapters:chapters(), progress:progress(), prepMeta:prepMeta(), days:S.days,
+  const data = {exportedAt:new Date().toISOString(), tasks:tasks(), presets:presets(), inbody:inbody(), chapters:chapters(), progress:progress(), prepMeta:prepMeta(), days:S.days,
     materials:Object.fromEntries(Object.entries(S.materials).filter(([k,m])=>!m.fromLibrary))};
   saveFile(`todo-list-백업-${todayStr()}.json`, new Blob([JSON.stringify(data,null,1)],{type:'application/json'}));
   toast('백업 파일을 다운로드 폴더에 저장했어요 (올린 파일 자체는 포함되지 않아요)');
@@ -1358,6 +1396,7 @@ async function restore(file){
   try{
     const d = JSON.parse(await file.text());
     if(d.tasks){ S.tasks=d.tasks; persist('app/tasks',{list:d.tasks},0); }
+    if(d.presets){ S.presets=d.presets; persist('app/presets',{list:d.presets},0); }
     else if(d.routines){ S.routines=d.routines; S.tasks=null; migrate(); }
     if(d.inbody){ S.inbody={entries:d.inbody}; persist('app/inbody',{entries:d.inbody},0); }
     if(d.chapters){ S.chapters=d.chapters; persist('prep/chapters',d.chapters,0); }
