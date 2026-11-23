@@ -1,5 +1,5 @@
 /* 항상 최신 파일을 먼저 받아 오고, 인터넷이 없을 때만 저장해 둔 파일을 써요. */
-const CACHE = 'todo-v4';
+const CACHE = 'todo-v5';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png', './vendor/marked.min.js', './vendor/purify.min.js', './seed.js', './library.js'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all(FILES.map(f => fetch(f, {cache:'no-store'}).then(r => r.ok && c.put(f, r)).catch(()=>{})))).then(() => self.skipWaiting()));
